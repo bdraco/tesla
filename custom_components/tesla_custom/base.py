@@ -70,6 +70,14 @@ class TeslaCarEntity(TeslaBaseEntity):
             if self.hass.config.units is METRIC_SYSTEM
             else US_CUSTOMARY_SYSTEM
         )
+        self._attr_unique_id = slugify(f"{car.vin} {self.type}")
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, car.id)},
+            name=self.vehicle_name,
+            manufacturer="Tesla",
+            model=car.car_type,
+            sw_version=car.car_version,
+        )
 
     async def update_controller(
         self, *, wake_if_asleep: bool = False, force: bool = True, blocking: bool = True
@@ -104,22 +112,6 @@ class TeslaCarEntity(TeslaBaseEntity):
         )
 
     @property
-    def unique_id(self) -> str:
-        """Return unique id for car entity."""
-        return slugify(f"{self._car.vin} {self.type}")
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._car.id)},
-            name=self.vehicle_name,
-            manufacturer="Tesla",
-            model=self._car.car_type,
-            sw_version=self._car.car_version,
-        )
-
-    @property
     def assumed_state(self) -> bool:
         """Return whether the data is from an online vehicle."""
         return not self._coordinator.controller.is_car_online(vin=self._car.vin) and (
@@ -141,11 +133,15 @@ class TeslaEnergyEntity(TeslaBaseEntity):
         """Initialise the Tesla energy device."""
         super().__init__(hass, coordinator)
         self._energysite = energysite
-
-    @property
-    def unique_id(self) -> str:
-        """Return unique id for energy site device."""
-        return slugify(f"{self._energysite.energysite_id} {self.type}")
+        self._attr_unique_id = slugify(f"{energysite.energysite_id} {self.type}")
+        model = f"{energysite.resource_type.title()}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, energysite.energysite_id)},
+            manufacturer="Tesla",
+            model=model,
+            name=energysite.site_name,
+            sw_version=self.sw_version,
+        )
 
     @property
     def sw_version(self) -> bool:
@@ -154,15 +150,3 @@ class TeslaEnergyEntity(TeslaBaseEntity):
             return self._energysite.version
         # Non-Powerwall sites do not provide version info
         return "Unavailable"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        model = f"{self._energysite.resource_type.title()}"
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._energysite.energysite_id)},
-            manufacturer="Tesla",
-            model=model,
-            name=self._energysite.site_name,
-            sw_version=self.sw_version,
-        )
